@@ -1,0 +1,47 @@
+_bugconf ()
+{
+    local cur prev opts lopts
+
+    COMPREPLY=()
+    cur="${COMP_WORDS[COMP_CWORD]}"
+    prev="${COMP_WORDS[COMP_CWORD-1]}"
+
+    opts="-h -b -bp -l -p -w -v"
+    lopts="--help --build --buildpath --logfn --prefs --puppet --reducer --xvfb --write --verbose"
+
+    case "${prev}" in
+        -b|--build)
+            COMPREPLY=( $( compgen -W "$(bclistbuilds)" -- $cur ) )
+            return 0
+            ;;
+        -bp|--buildpath)
+            COMPREPLY=( $( compgen -d -- $cur ) )
+            return 0
+            ;;
+        -l|--logfn|-p|--prefs|--puppet|--reducer)
+            COMPREPLY=( $( compgen -f -- $cur ) )
+            return 0
+            ;;
+        *)
+            ;;
+    esac
+
+    case "${cur}" in
+        --*)
+            COMPREPLY=( $( compgen -W "${lopts}" -- $cur ) )
+            return 0
+            ;;
+        -*)
+            COMPREPLY=( $( compgen -W "${opts} ${lopts}" -- $cur ) )
+            return 0
+            ;;
+        *)
+            COMPREPLY=( $( compgen -W "${opts} ${lopts}" -- $cur ) )
+            return 0
+            ;;
+    esac
+}
+complete -F _bugconf bugconf.py
+complete -F _bugconf bclistbuilds
+complete -F _bugconf bcrepro
+complete -F _bugconf bcreduce
