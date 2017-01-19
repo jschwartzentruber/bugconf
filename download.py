@@ -15,7 +15,7 @@ def _get_json(url):
 
 def parse_args():
     parser = argparse.ArgumentParser()
-    parser.add_argument("crash_id", type=int)
+    parser.add_argument("crash_ids", metavar="ID", action="append", type=int, nargs="+", default=[], help="FuzzManager crash ID")
     return parser.parse_args()
 
 
@@ -57,11 +57,12 @@ def download_test(server_url, auth_token, crash):
 def main():
     args = parse_args()
     server_url, auth_token = load_config()
-    crash = get_crash(server_url, auth_token, args.crash_id)
-    print("product=%s" % crash["product"], file=sys.stderr)
-    print("product_version=%s" % crash["product_version"], file=sys.stderr)
-    test_fn = download_test(server_url, auth_token, crash)
-    print(test_fn)
+    for crash_id in args.crash_ids:
+        crash = get_crash(server_url, auth_token, crash_id)
+        print("product=%s" % crash["product"], file=sys.stderr)
+        print("product_version=%s" % crash["product_version"], file=sys.stderr)
+        test_fn = download_test(server_url, auth_token, crash)
+        print(test_fn)
 
 if __name__ == "__main__":
     main()
