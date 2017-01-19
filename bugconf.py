@@ -21,6 +21,16 @@ class BugConf(object):
                 "prefs": ("p", "Path to prefs.js to use", str),
                 "puppet": (None, "Path to ffpuppet.py", str),
                 "reducer": (None, "Path to reduce.py", str),
+                "gdb": ("g", "Use GDB", bool),
+                "valgrind": (None, "Use Valgrind", bool),
+                "windbg": (None, "Use WinDBG", bool),
+                "asserts": ("s", "Detect soft assertions", bool),
+                "extension": ("e", "Use DOMFuzz extension", bool),
+                "memory": ("m", "Set memory limit", int),
+                "n_tries": (None, "Require N crashes for each reduction", int),
+                "skip": (None, "Skip N initial tries during reduction", int),
+                "reducers": ("r", "Specify reduce strategies", str),
+                "extension_path": (None, "Path to DOMFuzz extension", str),
                 "xvfb": (None, "Use Xvfb", bool)}
 
     def __init__(self):
@@ -32,6 +42,16 @@ class BugConf(object):
         self._prefs = None
         self._puppet = None
         self._reducer = None
+        self.gdb = None
+        self.valgrind = None
+        self.windbg = None
+        self.asserts = None
+        self.extension = None
+        self.memory = None
+        self.n_tries = None
+        self.skip = None
+        self.reducers = None
+        self._extension_path = None
         self.xvfb = None
         self._defaults = set()
 
@@ -90,6 +110,13 @@ class BugConf(object):
     def reducer(self, value):
         self._reducer = value
 
+    @property
+    def extension_path(self):
+        return os.path.expanduser(self._extension_path)
+    @extension_path.setter
+    def extension_path(self, value):
+        self._extension_path = value
+
     def load(self, cfgfp, _defaults=False):
         "Set configs from the given file object"
         if _defaults:
@@ -132,45 +159,70 @@ class BugConf(object):
         for build in os.listdir(self.buildpath):
             yield build
 
-    def repro(self, testcase):
+    def repro(self, testcase, verbose=0):
         "Run repro"
         # build ffpuppet command
         cmd = [self.puppet, "-p", self.prefs, os.path.join(self.buildpath, self.build, 'firefox'), "-u", testcase]
-        if self.xvfb:
-            cmd.append("--xvfb")
-        if self.logfn:
-            cmd.extend(("-l", self.logfn))
+        cmd.extend(["-v"] * verbose)
+        for arg in ("xvfb", "gdb", "valgrind", "windbg"):
+            if getattr(self, arg):
+                cmd.append("--%s" % arg)
+        for arg in ("memory", "extension", "logfn"):
+            if getattr(self, arg):
+                cmd.append("--%s" % ("log" if arg == "logfn" else arg))
+                if arg == "extension":
+                    cmd.append(self.extension_path)
+                else:
+                    cmd.append(str(getattr(self, arg)))
         # run ffpuppet
+        log.debug("calling: %r", cmd)
         subprocess.check_call(cmd)
         if self.logfn:
             # cat the log
             with open(self.logfn) as logfp:
                 sys.stdout.write(logfp.read())
 
-    def reduce(self, testcase):
+    def reduce(self, testcase, verbose=0):
         "Run reduce"
         # build reduce command
         cmd = [self.reducer, "-p", self.prefs, os.path.join(self.buildpath, self.build, 'firefox'), testcase]
-        if self.xvfb:
-            cmd.append("--xvfb")
+        cmd.extend(["-v"] * verbose)
+        for arg in ("xvfb", "asserts", "gdb", "valgrind", "windbg"):
+            if getattr(self, arg):
+                cmd.append("--%s" % arg)
+        for arg in ("reducers", "skip", "n_tries", "memory", "extension"):
+            if getattr(self, arg):
+                cmd.append("--%s" % ("reducer" if arg == "reducers" else arg.replace("_", "-")))
+                if arg == "extension":
+                    cmd.append(self.extension_path)
+                else:
+                    cmd.append(str(getattr(self, arg)))
         # run reduce
+        log.debug("calling: %r", cmd)
         subprocess.check_call(cmd)
 
     @classmethod
-    def parse_args(cls, testcase=False):
+    def parse_args(cls, cmd):
         "Parse command line arguments"
+        testcase = cmd in {"bcrepro", "bcreduce"}
         parser = argparse.ArgumentParser()
         for cfg, (short, help_, type_) in cls._CONFIGS.items():
             action = {str: "store",
+                      int: "store",
                       bool: "store_true"}[type_]
+            args = ["--%s" % cfg]
             if short is not None:
-                parser.add_argument("--%s" % cfg, "-%s" % short, action=action, help=help_)
-            else:
-                parser.add_argument("--%s" % cfg, action=action, help=help_)
+                args.append("-%s" % short)
+            kwds = {"action": action,
+                    "default": None,
+                    "help": help_}
+            if type_ is not bool:
+                kwds["type"] = type_
+            parser.add_argument(*args, **kwds)
         if testcase:
             parser.add_argument("testcase", help="Testcase to operate on")
         parser.add_argument("--write", "-w", action="store_true", help="Write options to bugconf")
-        parser.add_argument("--verbose", "-v", action="count", help="Be more verbose")
+        parser.add_argument("--verbose", "-v", action="count", default=0, help="Be more verbose")
         return parser.parse_args()
 
     @classmethod
@@ -179,8 +231,7 @@ class BugConf(object):
         if len(logging.getLogger().handlers) == 0:
             logging.basicConfig()
         cmd = os.path.basename(sys.argv[0])
-        testcase = cmd in {"bcrepro", "bcreduce"}
-        args = cls.parse_args(testcase=testcase)
+        args = cls.parse_args(cmd)
         if args.verbose:
             logging.getLogger().setLevel(logging.INFO if args.verbose == 1 else logging.DEBUG)
         bcobj = cls()
@@ -192,9 +243,9 @@ class BugConf(object):
                 log.warning("No bugconf file found in current directory")
         bcobj.load_args(args)
         if cmd == "bcrepro":
-            bcobj.repro(args.testcase)
+            bcobj.repro(args.testcase, args.verbose)
         elif cmd == "bcreduce":
-            bcobj.reduce(args.testcase)
+            bcobj.reduce(args.testcase, args.verbose)
         elif cmd == "bclistbuilds":
             for build in bcobj.list_builds():
                 print(build)

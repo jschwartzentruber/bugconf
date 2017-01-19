@@ -6,8 +6,8 @@ _bugconf ()
     cur="${COMP_WORDS[COMP_CWORD]}"
     prev="${COMP_WORDS[COMP_CWORD-1]}"
 
-    opts="-h -b -bp -l -p -w -v"
-    lopts="--help --build --buildpath --logfn --prefs --puppet --reducer --xvfb --write --verbose"
+    opts="-b -bp -e -g -h -l -m -p -r -s -v -w"
+    lopts="--asserts --build --buildpath --extension --extension_path --gdb --help --logfn --memory --n_tries --prefs --puppet --reducer --reducers --skip --valgrind --verbose --windbg --write --xvfb"
 
     case "${prev}" in
         -b|--build)
@@ -18,7 +18,7 @@ _bugconf ()
             COMPREPLY=( $( compgen -d -- $cur ) )
             return 0
             ;;
-        -l|--logfn|-p|--prefs|--puppet|--reducer)
+        -l|--logfn|-p|--prefs|--puppet|--reducer|-e|--extension_path)
             COMPREPLY=( $( compgen -f -- $cur ) )
             return 0
             ;;

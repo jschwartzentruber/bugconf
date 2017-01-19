@@ -10,4 +10,14 @@ _arguments {-b,--build}'[Folder name of downloaded build]:str:{_values $(bclistb
            {-h,--help}'[Display help]' \
            {-w,--write}'[Write options to bugconf]' \
            {-v,--verbose}'[Be more verbose]' \
+           {-e,--extension}'[Use DOMFuzz extension]' \
+           {-g,--gdb}'[Use GDB]' \
+           --valgrind'[Use Valgrind]' \
+           --windbg'[Use WinDBG]' \
+           {-s,--asserts}'[Detect soft assertions]' \
+           --n_tries'[Require N crashes per reduction try]' \
+           {-r,--reducers}'[Specify reducers to use]' \
+           {-m,--memory}'[Set memory limit]' \
+           --skip'[Skip initial reduction tries]:int:' \
+           --extension_path'[Path to DOMFuzz extension]:file:_files' \
            ':testcase:_files'
