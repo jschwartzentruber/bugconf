@@ -1,4 +1,4 @@
-#!/usr/bin/env python
+#!/usr/bin/env python3
 import argparse
 import codecs
 import configparser
@@ -15,7 +15,7 @@ def _get_json(url):
 
 def parse_args():
     parser = argparse.ArgumentParser()
-    parser.add_argument("crash_ids", metavar="ID", action="append", type=int, nargs="+", default=[], help="FuzzManager crash ID")
+    parser.add_argument("crash_ids", metavar="ID", type=int, nargs="+", help="FuzzManager crash ID")
     return parser.parse_args()
 
 
@@ -38,7 +38,9 @@ def load_config():
 def get_crash(server_url, auth_token, crash_id):
     req = urllib.request.Request("%s/crashmanager/rest/crashes/%s/" % (server_url, crash_id),
                                  headers={"Authorization": "Token %s" % auth_token})
-    return _get_json(req)
+    result = _get_json(req)
+    result["id"] = crash_id
+    return result
 
 
 def download_test(server_url, auth_token, crash):
@@ -48,7 +50,7 @@ def download_test(server_url, auth_token, crash):
     opener = urllib.request.build_opener(auth_handler)
     testcase_data = opener.open(testcase_url).read()
 
-    test_fn = os.path.basename(crash["testcase"])
+    test_fn = "%d%s" % (crash["id"], os.path.splitext(crash["testcase"])[1])
     with open(test_fn, "wb") as test_fp:
         test_fp.write(testcase_data)
     return test_fn
