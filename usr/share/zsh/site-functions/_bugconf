@@ -1,23 +1,27 @@
 #compdef bugconf.py bclistbuilds bcreduce bcrepro
 
-_arguments {-b,--build}'[Folder name of downloaded build]:str:{_values $(bclistbuilds)}' \
+_arguments --any-crash'[Any crash is interesting during reduction]' \
+           {-b,--build}'[Folder name of downloaded build]:str:{_values $(bclistbuilds)}' \
            {-bp,--buildpath}'[Path of downloaded builds]:dir:_files -/' \
-           {-l,--logfn}'[Filename to save log to during repro]:file:_files' \
-           {-p,--prefs}'[Path to prefs.js to use]:file:_files' \
-           --puppet'[Path to ffpuppet.py]:file:_files' \
-           --reducer'[Path to reduce.py]:file:_files' \
-           --xvfb'[Use Xvfb]' \
-           {-h,--help}'[Display help]' \
-           {-w,--write}'[Write options to bugconf]' \
-           {-v,--verbose}'[Be more verbose]' \
+           {-c,--char}'[Use char reduction]' \
            {-e,--extension}'[Use DOMFuzz extension]' \
-           {-g,--gdb}'[Use GDB]' \
-           --valgrind'[Use Valgrind]' \
-           --windbg'[Use WinDBG]' \
-           {-s,--asserts}'[Detect soft assertions]' \
-           --n_tries'[Require N crashes per reduction try]' \
-           {-r,--reducers}'[Specify reducers to use]' \
-           {-m,--memory}'[Set memory limit]' \
-           --skip'[Skip initial reduction tries]:int:' \
            --extension_path'[Path to DOMFuzz extension]:file:_files' \
+           {-g,--gdb}'[Use GDB]' \
+           {-h,--help}'[Display help]' \
+           {-j,--js}'[Use jsstr reduction]' \
+           {-l,--logfn}'[Filename to save log to during repro]:file:_files' \
+           {-m,--memory}'[Set memory limit]' \
+           --no-harness'[Don'\''t use a background tab to detect timeout]' \
+           {-p,--prefs}'[Path to prefs.js to use]:file:_files' \
+           {-rf,--reduce-file}'[Testcase to reduce]:file:_files' \
+           --reducer'[Path to interesting.py]:file:_files' \
+           --repeat'[Repeat intermittent testcase reduction multiple times]:int:' \
+           --safemode'[Launch in Safe Mode (requires interaction)]' \
+           --strategy'[Use lithium strategy]:str:' \
+           --symbol'[Use symbol reduction]' \
+           --valgrind'[Use Valgrind]' \
+           {-v,--verbose}'[Be more verbose]' \
+           --windbg'[Use WinDBG]' \
+           {-w,--write}'[Write options to bugconf]' \
+           --xvfb'[Use Xvfb]' \
            ':testcase:_files'

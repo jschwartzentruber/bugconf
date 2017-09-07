@@ -25,9 +25,9 @@ Roadmap
 
 Installation
 ============
-- install grizzly and its dependencies
-- install bugconf.py to your path (~/bin or /usr/local/bin)
-- create symlinks in your path (for i in bcrepro bcreduce bclistbuilds; do ln -s bugconf.py $i; done)
+- install ffpuppet, lithium, and dependencies
+- install bugconf.py & download.py to your path (~/bin or /usr/local/bin)
+- create symlinks in your path (for i in bcrepro bcreduce bclistbuilds; do ln -s bugconf.py $i; done; for i in dlcrash initbug; do ln -s download.py $i; done)
 - install shell autocompletion if desired
 
 Setup
@@ -38,7 +38,7 @@ Create a global bugconf config in either ~/.config/bugconf/config or ~/.bugconfr
         "prefs": "~/prefs.js",
         "buildpath": "~/builds",
         "puppet": "~/src/m/ffpuppet/ffpuppet.py",
-        "reducer": "~/src/m/grizzly/reduce.py",
+        "reducer": "~/interesting.py",
         "logfn": "log.txt"
     }
 

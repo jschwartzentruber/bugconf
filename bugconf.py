@@ -2,6 +2,7 @@
 "Automate bug triage"
 
 import argparse
+import configparser
 import json
 import logging
 import os
@@ -15,43 +16,55 @@ log = logging.getLogger("bugconf") # pylint: disable=invalid-name
 class BugConf(object):
     "Class for automating bug triage"
 
-    _CONFIGS = {"build": ("b", "Folder name of downloaded build (relative to buildpath)", str),
+    _CONFIGS = {"any_crash": (None, "Any crash is interesting during reduction", bool),
+                #"asserts": ("s", "Detect soft assertions", bool),
+                "build": ("b", "Folder name of downloaded build (relative to buildpath)", str),
                 "buildpath": ("bp", "Path of downloaded builds", str),
-                "logfn": ("l", "Filename to save log to during repro", str),
-                "prefs": ("p", "Path to prefs.js to use", str),
-                "puppet": (None, "Path to ffpuppet.py", str),
-                "reducer": (None, "Path to reduce.py", str),
+                "char": ("c", "Use char reduction", bool),
+                "extension": ("e", "Use DOMFuzz extension", bool),
+                "extension_path": (None, "Path to DOMFuzz extension", str),
                 "gdb": ("g", "Use GDB", bool),
+                "js": ("j", "Use jsstr reduction", bool),
+                "logfn": ("l", "Filename to save log to during repro", str),
+                "memory": ("m", "Set memory limit", int),
+                "no_harness": (None, "Don't use a background tab to detect timeout", bool),
+                "prefs": ("p", "Path to prefs.js to use", str),
+                "reduce_file": ("rf", "Testcase to reduce", str),
+                "reducer": (None, "Path to interesting.py", str),
+                "repeat": (None, "Run intermittent testcase reduction multiple times", int),
+                "safemode": (None, "Launch in Safe Mode (requires interaction)", bool),
+                "skip": (None, "Skip n initial iterations", int),
+                "strategy": (None, "Use lithium strategy", str),
+                "symbol": (None, "Use symbol reduction", bool),
                 "valgrind": (None, "Use Valgrind", bool),
                 "windbg": (None, "Use WinDBG", bool),
-                "asserts": ("s", "Detect soft assertions", bool),
-                "extension": ("e", "Use DOMFuzz extension", bool),
-                "memory": ("m", "Set memory limit", int),
-                "n_tries": (None, "Require N crashes for each reduction", int),
-                "skip": (None, "Skip N initial tries during reduction", int),
-                "reducers": ("r", "Specify reduce strategies", str),
-                "extension_path": (None, "Path to DOMFuzz extension", str),
                 "xvfb": (None, "Use Xvfb", bool)}
 
     def __init__(self):
         "Initialize BugConf and load defaults if found"
 
+        self.any_crash = None
+        #self.asserts = None
         self._build = None
         self._buildpath = None
-        self._logfn = None
-        self._prefs = None
-        self._puppet = None
-        self._reducer = None
+        self.char = None
+        self.extension = None
+        self._extension_path = None
         self.gdb = None
+        self.js = None
+        self._logfn = None
+        self.memory = None
+        self.no_harness = None
+        self._prefs = None
+        self._reduce_file = None
+        self._reducer = None
+        self.repeat = None
+        self.safemode = None
+        self.skip = None
+        self.strategy = None
+        self.symbol = None
         self.valgrind = None
         self.windbg = None
-        self.asserts = None
-        self.extension = None
-        self.memory = None
-        self.n_tries = None
-        self.skip = None
-        self.reducers = None
-        self._extension_path = None
         self.xvfb = None
         self._defaults = set()
 
@@ -83,6 +96,13 @@ class BugConf(object):
         self._buildpath = value
 
     @property
+    def extension_path(self):
+        return os.path.expanduser(self._extension_path)
+    @extension_path.setter
+    def extension_path(self, value):
+        self._extension_path = value
+
+    @property
     def logfn(self):
         return os.path.expanduser(self._logfn)
     @logfn.setter
@@ -97,13 +117,6 @@ class BugConf(object):
         self._prefs = value
 
     @property
-    def puppet(self):
-        return os.path.expanduser(self._puppet)
-    @puppet.setter
-    def puppet(self, value):
-        self._puppet = value
-
-    @property
     def reducer(self):
         return os.path.expanduser(self._reducer)
     @reducer.setter
@@ -111,11 +124,11 @@ class BugConf(object):
         self._reducer = value
 
     @property
-    def extension_path(self):
-        return os.path.expanduser(self._extension_path)
-    @extension_path.setter
-    def extension_path(self, value):
-        self._extension_path = value
+    def reduce_file(self):
+        return self._reduce_file
+    @reduce_file.setter
+    def reduce_file(self, value):
+        self._reduce_file = os.path.expanduser(value)
 
     def load(self, cfgfp, _defaults=False):
         "Set configs from the given file object"
@@ -156,24 +169,30 @@ class BugConf(object):
 
     def list_builds(self):
         "List builds available in the build path"
-        for build in os.listdir(self.buildpath):
+        for build in sorted(os.listdir(self.buildpath)):
             yield build
+
+    def _add_ffpuppet_args(self, cmd, verbose=0):
+        cmd.extend(["-p", self.prefs, os.path.join(self.buildpath, self.build, 'firefox')])
+        cmd.extend(["-v"] * verbose)
+        for arg in ["xvfb", "gdb", "valgrind", "windbg"]:
+            if getattr(self, arg):
+                cmd.append("--%s" % arg)
+        if self.safemode:
+            cmd.append("--safe-mode")
+        if self.extension:
+            cmd.extend(["--extension", self.extension_path])
+        if self.memory:
+            cmd.extend(["--memory", str(self.memory)])
 
     def repro(self, testcase, verbose=0):
         "Run repro"
         # build ffpuppet command
-        cmd = [self.puppet, "-p", self.prefs, os.path.join(self.buildpath, self.build, 'firefox'), "-u", testcase]
-        cmd.extend(["-v"] * verbose)
-        for arg in ("xvfb", "gdb", "valgrind", "windbg"):
-            if getattr(self, arg):
-                cmd.append("--%s" % arg)
-        for arg in ("memory", "extension", "logfn"):
-            if getattr(self, arg):
-                cmd.append("--%s" % ("log" if arg == "logfn" else arg))
-                if arg == "extension":
-                    cmd.append(self.extension_path)
-                else:
-                    cmd.append(str(getattr(self, arg)))
+        cmd = ["python2", "-m", "ffpuppet", "-u", testcase]
+        self._add_ffpuppet_args(cmd, verbose)
+        cmd.extend(["--abort-token", r",name=PBrowser::Msg_Destroy)"])
+        if self.logfn:
+            cmd.extend(["--log", str(self.logfn)])
         # run ffpuppet
         log.debug("calling: %r", cmd)
         subprocess.check_call(cmd)
@@ -182,21 +201,37 @@ class BugConf(object):
             with open(self.logfn) as logfp:
                 sys.stdout.write(logfp.read())
 
+        cfg = configparser.RawConfigParser()
+        cfg.read(os.path.join(self.buildpath, self.build, 'firefox.fuzzmanagerconf'))
+        product = '-'.join(part[0] for part in cfg['Main']['product'].split('-'))
+        rev = cfg['Main']['product_version']
+        log.warning('reproduced in %s rev %s', product, rev)
+
     def reduce(self, testcase, verbose=0):
         "Run reduce"
         # build reduce command
-        cmd = [self.reducer, "-p", self.prefs, os.path.join(self.buildpath, self.build, 'firefox'), testcase]
-        cmd.extend(["-v"] * verbose)
-        for arg in ("xvfb", "asserts", "gdb", "valgrind", "windbg"):
-            if getattr(self, arg):
-                cmd.append("--%s" % arg)
-        for arg in ("reducers", "skip", "n_tries", "memory", "extension"):
-            if getattr(self, arg):
-                cmd.append("--%s" % ("reducer" if arg == "reducers" else arg.replace("_", "-")))
-                if arg == "extension":
-                    cmd.append(self.extension_path)
-                else:
-                    cmd.append(str(getattr(self, arg)))
+        cmd = ["lithium"]
+        if self.char:
+            cmd.append("--char")
+        if self.js:
+            cmd.append("--js")
+        if self.strategy is not None:
+            cmd.extend(["--strategy", self.strategy])
+        if self.symbol:
+            cmd.append("--symbol")
+        if self.reduce_file is not None:
+            cmd.extend(["--testcase", self.reduce_file])
+        cmd.append(self.reducer)
+        self._add_ffpuppet_args(cmd, verbose)
+        if self.any_crash:
+            cmd.append("--any-crash")
+        if self.no_harness:
+            cmd.append("--no-harness")
+        if self.repeat:
+            cmd.extend(("--repeat", "%d" % self.repeat))
+        if self.skip:
+            cmd.extend(("--skip", "%d" % self.skip))
+        cmd.append(testcase)
         # run reduce
         log.debug("calling: %r", cmd)
         subprocess.check_call(cmd)
@@ -210,7 +245,7 @@ class BugConf(object):
             action = {str: "store",
                       int: "store",
                       bool: "store_true"}[type_]
-            args = ["--%s" % cfg]
+            args = ["--%s" % cfg.replace("_", "-")]
             if short is not None:
                 args.append("-%s" % short)
             kwds = {"action": action,
