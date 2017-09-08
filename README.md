@@ -25,7 +25,7 @@ Roadmap
 
 Installation
 ============
-- install [FuzzManager](/MozillaSecurity/FuzzManager), [ffpuppet](/MozillaSecurity/FFPuppet), [lithium](/MozillaSecurity/lithium), and their dependencies
+- install [FuzzManager](https://github.com/MozillaSecurity/FuzzManager), [ffpuppet](https://github.com/MozillaSecurity/FFPuppet), [lithium](https://github.com/MozillaSecurity/lithium), and their dependencies
 - install `bugconf.py` & `download.py` to your path (`~/bin` or `/usr/local/bin`)
 - create symlinks in your path (`for i in bcrepro bcreduce bclistbuilds; do ln -s bugconf.py $i; done; for i in dlcrash initbug; do ln -s download.py $i; done`)
 - install shell autocompletion if desired (bash or zsh)
