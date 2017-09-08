@@ -13,13 +13,12 @@ Currently it assumes a workflow like this:
 8. link the bug with the FM signature
 9. rename the local folder to the bug id for future reference
 
-Steps 4-5 are currently supported with the bcrepro and bcreduce commands respectively.
+Steps 2-5 are currently supported with the bcrepro and bcreduce commands respectively.
 
 Roadmap
 =======
-- steps 2,3,7,8 from the workflow above
+- steps 7,8 from the workflow above
 - submitting the reduced testcase back to FM to log it from there
-- download other testcases from the signature (in case the best doesn't reproduce)
 - use git to auto-version work in progress (single testcase.html & log.txt which are versioned with
   automatic & accurate commit messages
 
@@ -27,8 +26,8 @@ Installation
 ============
 - install ffpuppet, lithium, and dependencies
 - install bugconf.py & download.py to your path (~/bin or /usr/local/bin)
-- create symlinks in your path (for i in bcrepro bcreduce bclistbuilds; do ln -s bugconf.py $i; done; for i in dlcrash initbug; do ln -s download.py $i; done)
-- install shell autocompletion if desired
+- create symlinks in your path (`for i in bcrepro bcreduce bclistbuilds; do ln -s bugconf.py $i; done; for i in dlcrash initbug; do ln -s download.py $i; done`)
+- install shell autocompletion if desired (bash or zsh)
 
 Setup
 =====
@@ -37,7 +36,6 @@ Create a global bugconf config in either ~/.config/bugconf/config or ~/.bugconfr
     {
         "prefs": "~/prefs.js",
         "buildpath": "~/builds",
-        "puppet": "~/src/m/ffpuppet/ffpuppet.py",
         "reducer": "~/interesting.py",
         "logfn": "log.txt"
     }
@@ -47,6 +45,13 @@ If you add -w to any command, a bugconf file will get written there and will rep
 
 Example:
 
+    $ initbug 123
+    creating 123 - some crash signature
+    product=mozilla-central
+    product_version=9599eab713ca
+    12345.html
+    # created a working folder for bucket 123 in fuzzmanager, and downloaded crash entry 12345 into it
+    
     $ bugconf.py -b m-c-1234567-asan-opt -w
     WARNING:bugconf:No bugconf file found in current directory
     $ cat bugconf
@@ -60,4 +65,7 @@ Example:
     
     $ bcrepro -p some-other-prefs.js -b m-c-1234568-asan-opt testcase.html
     #... override prefs and build for just this run
+    
+    $ dlcrash 12346
+    # download another crash entry from fuzzmanager
 
