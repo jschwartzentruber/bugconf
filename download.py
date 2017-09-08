@@ -57,7 +57,7 @@ def init_bug(server_url, auth_token, bucket_id):
                                  headers={"Authorization": "Token %s" % auth_token})
     bucket = _get_json(req)
     # create directory
-    dest = str(bucket_id) + " - " + re.sub(r", (at )?[^/]+?(/[^/]+)+:\d+", "", bucket["shortDescription"])
+    dest = str(bucket_id) + " - " + re.sub(r", (at )?[^/]*(/[^/]+)+:\d+", "", bucket["shortDescription"])
     os.mkdir(dest)
     os.chdir(dest)
     print("creating " + dest, file=sys.stderr)
