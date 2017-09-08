@@ -21,6 +21,7 @@ Roadmap
 - submitting the reduced testcase back to FM to log it from there
 - use git to auto-version work in progress (single testcase.html & log.txt which are versioned with
   automatic & accurate commit messages
+- new commands like lscrashes to list crashes in that bucket from the shell
 
 Installation
 ============
