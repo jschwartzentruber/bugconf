@@ -1,4 +1,4 @@
-BugConf helps you triage bugs in fewer keystrokes by remembering details for you
+BugConf helps you triage Firefox fuzzing bugs in fewer keystrokes by remembering details for you
 and using them to launch the automation steps.
 
 Currently it assumes a workflow like this:
@@ -25,14 +25,14 @@ Roadmap
 
 Installation
 ============
-- install ffpuppet, lithium, and dependencies
-- install bugconf.py & download.py to your path (~/bin or /usr/local/bin)
+- install [FuzzManager](/MozillaSecurity/FuzzManager), [ffpuppet](/MozillaSecurity/FFPuppet), [lithium](/MozillaSecurity/lithium), and their dependencies
+- install `bugconf.py` & `download.py` to your path (`~/bin` or `/usr/local/bin`)
 - create symlinks in your path (`for i in bcrepro bcreduce bclistbuilds; do ln -s bugconf.py $i; done; for i in dlcrash initbug; do ln -s download.py $i; done`)
 - install shell autocompletion if desired (bash or zsh)
 
 Setup
 =====
-Create a global bugconf config in either ~/.config/bugconf/config or ~/.bugconfrc. It should look something like this:
+Create a global bugconf config in either `~/.config/bugconf/config` or `~/.bugconfrc`. It should look something like this:
 
     {
         "prefs": "~/prefs.js",
@@ -42,7 +42,7 @@ Create a global bugconf config in either ~/.config/bugconf/config or ~/.bugconfr
     }
 
 `bclistbuilds` will list the contents of your build directory, and also gets used for autocomplete of `-b` option on any script.
-If you add -w to any command, a bugconf file will get written there and will reproduce the same options next time.
+If you add `-w` to any command, a bugconf file will get written there and will reproduce the same options next time.
 
 Example:
 
