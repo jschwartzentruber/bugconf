@@ -12,6 +12,7 @@ import sys
 
 
 import ffpuppet
+import lithium
 
 
 log = logging.getLogger("bugconf") # pylint: disable=invalid-name
@@ -178,14 +179,7 @@ class BugConf(object):
         for build in sorted(os.listdir(self.buildpath)):
             yield build
 
-    def _add_ffpuppet_args(self, cmd, verbose=0):
-        cmd.extend(["-p", self.prefs, os.path.join(self.buildpath, self.build, 'firefox')])
-        cmd.extend(["-v"] * verbose)
-        for arg in ["xvfb", "gdb", "valgrind"]:
-            if getattr(self, arg):
-                cmd.append("--%s" % arg)
-
-    def repro(self, testcase, verbose=0):
+    def repro(self, testcase):
         "Run repro"
         # build ffpuppet command
         ffp = ffpuppet.FFPuppet(use_valgrind=self.valgrind, use_xvfb=self.xvfb, use_gdb=self.gdb)
@@ -226,10 +220,10 @@ class BugConf(object):
         rev = cfg['Main']['product_version']
         log.warning('reproduced in %s rev %s', product, rev)
 
-    def reduce(self, testcase, verbose=0):
+    def reduce(self, testcase):
         "Run reduce"
         # build reduce command
-        cmd = ["lithium"]
+        cmd = []
         if self.char:
             cmd.append("--char")
         if self.js:
@@ -241,7 +235,10 @@ class BugConf(object):
         if self.reduce_file is not None:
             cmd.extend(["--testcase", self.reduce_file])
         cmd.append(self.reducer)
-        self._add_ffpuppet_args(cmd, verbose)
+        cmd.extend(["-p", self.prefs, os.path.join(self.buildpath, self.build, 'firefox')])
+        for arg in ["xvfb", "gdb", "valgrind"]:
+            if getattr(self, arg):
+                cmd.append("--%s" % arg)
         if self.any_crash:
             cmd.append("--any-crash")
         if self.no_harness:
@@ -254,8 +251,15 @@ class BugConf(object):
             cmd.extend(("--skip", "%d" % self.skip))
         cmd.append(testcase)
         # run reduce
-        log.debug("calling: %r", cmd)
-        subprocess.check_call(cmd)
+
+        lith = lithium.Lithium()
+        lith.processArgs(cmd)
+
+        try:
+            return lith.run()
+
+        except lithium.LithiumError as exc:
+            log.error(exc)
 
     @classmethod
     def parse_args(cls, cmd):
@@ -278,18 +282,18 @@ class BugConf(object):
         if testcase:
             parser.add_argument("testcase", help="Testcase to operate on")
         parser.add_argument("--write", "-w", action="store_true", help="Write options to bugconf")
-        parser.add_argument("--verbose", "-v", action="count", default=0, help="Be more verbose")
+        parser.add_argument("--verbose", "-v", action="store_true", help="Be more verbose")
         return parser.parse_args()
 
     @classmethod
     def main(cls):
         "Main"
         if len(logging.getLogger().handlers) == 0:
-            logging.basicConfig()
+            logging.basicConfig(level=logging.INFO)
         cmd = os.path.basename(sys.argv[0])
         args = cls.parse_args(cmd)
         if args.verbose:
-            logging.getLogger().setLevel(logging.INFO if args.verbose == 1 else logging.DEBUG)
+            logging.getLogger().setLevel(logging.DEBUG)
         bcobj = cls()
         try:
             with open("bugconf") as cfgfp:
@@ -299,9 +303,9 @@ class BugConf(object):
                 log.warning("No bugconf file found in current directory")
         bcobj.load_args(args)
         if cmd == "bcrepro":
-            bcobj.repro(args.testcase, args.verbose)
+            bcobj.repro(args.testcase)
         elif cmd == "bcreduce":
-            bcobj.reduce(args.testcase, args.verbose)
+            bcobj.reduce(args.testcase)
         elif cmd == "bclistbuilds":
             for build in bcobj.list_builds():
                 print(build)
