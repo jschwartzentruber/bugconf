@@ -6,8 +6,12 @@ import configparser
 import json
 import logging
 import os
+import re
 import subprocess
 import sys
+
+
+import ffpuppet
 
 
 log = logging.getLogger("bugconf") # pylint: disable=invalid-name
@@ -33,11 +37,12 @@ class BugConf(object):
                 "reducer": (None, "Path to interesting.py", str),
                 "repeat": (None, "Run intermittent testcase reduction multiple times", int),
                 "safemode": (None, "Launch in Safe Mode (requires interaction)", bool),
+                "sig": (None, "Specify signature to reduce", str),
                 "skip": (None, "Skip n initial iterations", int),
                 "strategy": (None, "Use lithium strategy", str),
                 "symbol": (None, "Use symbol reduction", bool),
+                "timeout": ("t", "Kill firefox if the testcase doesn't terminate within n seconds", int),
                 "valgrind": (None, "Use Valgrind", bool),
-                "windbg": (None, "Use WinDBG", bool),
                 "xvfb": (None, "Use Xvfb", bool)}
 
     def __init__(self):
@@ -60,11 +65,12 @@ class BugConf(object):
         self._reducer = None
         self.repeat = None
         self.safemode = None
+        self.sig = None
         self.skip = None
         self.strategy = None
         self.symbol = None
+        self.timeout = None
         self.valgrind = None
-        self.windbg = None
         self.xvfb = None
         self._defaults = set()
 
@@ -133,9 +139,9 @@ class BugConf(object):
     def load(self, cfgfp, _defaults=False):
         "Set configs from the given file object"
         if _defaults:
-            log.info("loading defaults from %s", cfgfp.name)
+            log.debug("loading defaults from %s", cfgfp.name)
         else:
-            log.info("loading from %s", cfgfp.name)
+            log.debug("loading from %s", cfgfp.name)
         obj = json.load(cfgfp)
         for cfg, value in obj.items():
             if cfg not in self._CONFIGS:
@@ -159,7 +165,7 @@ class BugConf(object):
 
     def load_args(self, args):
         "Set configs from argparse Namespace"
-        log.info("loading from args")
+        log.debug("loading from args")
         obj = vars(args)
         for cfg, value in obj.items():
             if cfg in self._CONFIGS and value is not None:
@@ -175,32 +181,45 @@ class BugConf(object):
     def _add_ffpuppet_args(self, cmd, verbose=0):
         cmd.extend(["-p", self.prefs, os.path.join(self.buildpath, self.build, 'firefox')])
         cmd.extend(["-v"] * verbose)
-        for arg in ["xvfb", "gdb", "valgrind", "windbg"]:
+        for arg in ["xvfb", "gdb", "valgrind"]:
             if getattr(self, arg):
                 cmd.append("--%s" % arg)
-        if self.safemode:
-            cmd.append("--safe-mode")
-        if self.extension:
-            cmd.extend(["--extension", self.extension_path])
-        if self.memory:
-            cmd.extend(["--memory", str(self.memory)])
 
     def repro(self, testcase, verbose=0):
         "Run repro"
         # build ffpuppet command
-        cmd = ["python2", "-m", "ffpuppet", "-u", testcase]
-        self._add_ffpuppet_args(cmd, verbose)
-        cmd.extend(["--abort-token", r",name=PBrowser::Msg_Destroy)"])
-        if self.logfn:
-            cmd.extend(["--log", str(self.logfn)])
-        # run ffpuppet
-        log.debug("calling: %r", cmd)
-        subprocess.check_call(cmd)
+        ffp = ffpuppet.FFPuppet(use_valgrind=self.valgrind, use_xvfb=self.xvfb, use_gdb=self.gdb)
+        try:
+            ffp.add_abort_token(re.compile(r"###!!!\s*\[Parent\].+?Error:\s*\(.+?PBrowser::Msg_Destroy\)"))
+            kwds = {
+                "prefs_js": self.prefs,
+                "location": testcase
+            }
+            if self.safemode:
+                kwds["safe_mode"] = True
+            if self.extension:
+                kwds["extension"] = self.extension_path
+            if self.memory:
+                kwds["memory_limit"] = self.memory * 1024 * 1024
+            # run ffpuppet
+            log.debug("launching ffpuppet")
+            ffp.launch(os.path.join(self.buildpath, self.build, 'firefox'), **kwds)
+            log.info("Running Firefox (pid: %d)...", ffp.get_pid())
+            if ffp.wait(timeout=self.timeout) is None:
+                log.info("Testcase hit %ds timeout", self.timeout)
+        finally:
+            log.info("Shutting down...")
+            try:
+                ffp.close()
+                log.info("Firefox process closed")
+                if self.logfn:
+                    ffp.save_log(self.logfn)
+            finally:
+                ffp.clean_up()
         if self.logfn:
             # cat the log
             with open(self.logfn) as logfp:
                 sys.stdout.write(logfp.read())
-
         cfg = configparser.RawConfigParser()
         cfg.read(os.path.join(self.buildpath, self.build, 'firefox.fuzzmanagerconf'))
         product = '-'.join(part[0] for part in cfg['Main']['product'].split('-'))
@@ -229,6 +248,8 @@ class BugConf(object):
             cmd.append("--no-harness")
         if self.repeat:
             cmd.extend(("--repeat", "%d" % self.repeat))
+        if self.sig:
+            cmd.extend(("--sig", self.sig))
         if self.skip:
             cmd.extend(("--skip", "%d" % self.skip))
         cmd.append(testcase)

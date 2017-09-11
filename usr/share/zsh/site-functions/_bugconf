@@ -17,11 +17,12 @@ _arguments --any-crash'[Any crash is interesting during reduction]' \
            --reducer'[Path to interesting.py]:file:_files' \
            --repeat'[Repeat intermittent testcase reduction multiple times]:int:' \
            --safemode'[Launch in Safe Mode (requires interaction)]' \
+           --sig'[Specify signature to reduce]:str:' \
            --strategy'[Use lithium strategy]:str:' \
            --symbol'[Use symbol reduction]' \
+           {-t,--timeout}"[Kill firefox if the testcase doesn't terminate within n seconds]:int:" \
            --valgrind'[Use Valgrind]' \
            {-v,--verbose}'[Be more verbose]' \
-           --windbg'[Use WinDBG]' \
            {-w,--write}'[Write options to bugconf]' \
            --xvfb'[Use Xvfb]' \
            ':testcase:_files'
