@@ -11,6 +11,7 @@ _arguments --any-crash'[Any crash is interesting during reduction]' \
            {-j,--js}'[Use jsstr reduction]' \
            {-l,--logfn}'[Filename to save log to during repro]:file:_files' \
            {-m,--memory}'[Set memory limit]' \
+           {-n,--min-crashes}'[Require the testcase to crash n times before accepting the result.]:int:' \
            --no-harness'[Don'\''t use a background tab to detect timeout]' \
            {-p,--prefs}'[Path to prefs.js to use]:file:_files' \
            {-rf,--reduce-file}'[Testcase to reduce]:file:_files' \

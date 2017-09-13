@@ -6,8 +6,8 @@ _bugconf ()
     cur="${COMP_WORDS[COMP_CWORD]}"
     prev="${COMP_WORDS[COMP_CWORD-1]}"
 
-    opts="-b -bp -c -e -g -h -j -l -m -p -rf -t -v -w"
-    lopts="--any-crash --build --buildpath --char --extension --extension-path --gdb --help --js --logfn --memory --no-harness --prefs --reduce-file --reducer --repeat --safemode --sig --strategy --symbol --timeout --valgrind --verbose --write --xvfb"
+    opts="-b -bp -c -e -g -h -j -l -m -n -p -rf -t -v -w"
+    lopts="--any-crash --build --buildpath --char --extension --extension-path --gdb --help --js --logfn --memory --min-crashes --no-harness --prefs --reduce-file --reducer --repeat --safemode --sig --strategy --symbol --timeout --valgrind --verbose --write --xvfb"
 
     case "${prev}" in
         -b|--build)

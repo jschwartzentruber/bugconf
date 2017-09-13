@@ -32,6 +32,7 @@ class BugConf(object):
                 "js": ("j", "Use jsstr reduction", bool),
                 "logfn": ("l", "Filename to save log to during repro", str),
                 "memory": ("m", "Set memory limit", int),
+                "min_crashes": ("n", "Require the testcase to crash n times before accepting the result.", int),
                 "no_harness": (None, "Don't use a background tab to detect timeout", bool),
                 "prefs": ("p", "Path to prefs.js to use", str),
                 "reduce_file": ("rf", "Testcase to reduce", str),
@@ -60,6 +61,7 @@ class BugConf(object):
         self.js = None
         self._logfn = None
         self.memory = None
+        self.min_crashes = None
         self.no_harness = None
         self._prefs = None
         self._reduce_file = None
@@ -241,6 +243,8 @@ class BugConf(object):
                 cmd.append("--%s" % arg)
         if self.any_crash:
             cmd.append("--any-crash")
+        if self.min_crashes:
+            cmd.extend(("--min-crashes", "%d" % self.min_crashes))
         if self.no_harness:
             cmd.append("--no-harness")
         if self.repeat:
