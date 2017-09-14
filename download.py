@@ -95,7 +95,8 @@ def dl_crash_main():
     for crash_id in args.crash_ids:
         crash = get_crash(server_url, auth_token, crash_id)
         print("product=%s" % crash["product"], file=sys.stderr)
-        print("product_version=%s" % crash["product_version"], file=sys.stderr)
+        if "product_version" in crash:
+            print("product_version=%s" % crash["product_version"], file=sys.stderr)
         test_fn = download_test(server_url, auth_token, crash)
         print(test_fn)
 

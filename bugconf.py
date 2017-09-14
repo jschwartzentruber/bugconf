@@ -18,6 +18,37 @@ import lithium
 log = logging.getLogger("bugconf") # pylint: disable=invalid-name
 
 
+def format_mdsw_backtrace(infile, threadno=None):
+    """Format the output of `minidump_stackwalk -m` and return a list of frames from a single thread.
+
+    @type infile: file-object
+    @param infile: The input file to read minidump_stackwalk output from
+
+    @type threadno: int or None
+    @param threadno: Thread number to parse (None -> first encountered)
+    """
+    for line in infile:
+        if threadno is None:
+            parse_line = False
+            if "|" in line:
+                try:
+                    threadno = int(line.split("|", 1)[0])
+                    parse_line = True
+                except ValueError:
+                    pass
+        else:
+            parse_line = line.startswith("%d|" % threadno)
+        if parse_line:
+            # threadno, ...
+            _, frame, lib, sym, src, line, addr = line.strip().split("|")
+            if sym and src and line:
+                # repo-type, repo, src, revision
+                _, _, src, _ = src.split(":")
+                yield "#%s: %s, at %s:%s" % (frame, sym, src, line)
+            else:
+                yield "#%s: %s+%s" % (frame, lib, addr)
+
+
 class BugConf(object):
     "Class for automating bug triage"
 
@@ -208,24 +239,54 @@ class BugConf(object):
             try:
                 ffp.close()
                 log.info("Firefox process closed")
-                if self.logfn:
-                    ffp.save_log(self.logfn)
+                ffp.save_logs(".")
             finally:
                 ffp.clean_up()
-        if self.logfn:
-            # cat the log
-            with open(self.logfn) as logfp:
-                sys.stdout.write(logfp.read())
+        # dump the logs
+        stderr = None
+        crashdata = None
+        best_size = 0
+        for log_fn in os.listdir("."):
+            if log_fn.startswith("log_") and log_fn.endswith(".txt"):
+                if "stderr" in log_fn:
+                    stderr = log_fn
+                elif "asan" in log_fn:
+                    log_size = os.stat(log_fn).st_size
+                    if log_size > best_size:
+                        crashdata = log_fn
+                        best_size = log_size
+                elif "stdout" not in log_fn and crashdata is None:
+                    # don't set best_size so that any asan log will replace this one
+                    crashdata = log_fn
+        if crashdata is None and stderr is not None:
+            with open(stderr) as log_fp:
+                sys.stdout.write(log_fp.read())
+        elif crashdata is None:
+            log.warning("No stderr!")
+        else:
+            # look for Assertion or panic in stderr
+            if stderr is not None:
+                with open(stderr) as log_fp:
+                    for line in log_fp:
+                        if "Assertion failure" in line:
+                            sys.stdout.write(line)
+                        elif "panicked at" in line:
+                            sys.stdout.write(line)
+            with open(crashdata) as log_fp:
+                if "minidump" in crashdata:
+                    sys.stdout.write("\n".join(format_mdsw_backtrace(log_fp)))
+                else:
+                    sys.stdout.write(log_fp.read())
         cfg = configparser.RawConfigParser()
         cfg.read(os.path.join(self.buildpath, self.build, 'firefox.fuzzmanagerconf'))
         product = '-'.join(part[0] for part in cfg['Main']['product'].split('-'))
         rev = cfg['Main']['product_version']
-        log.warning('reproduced in %s rev %s', product, rev)
+        log.warning('run in %s rev %s', product, rev)
 
-    def reduce(self, testcase):
+    def reduce(self, testcase, verbose):
         "Run reduce"
         # build reduce command
-        cmd = []
+        cmd = ["lithium"]
         if self.char:
             cmd.append("--char")
         if self.js:
@@ -253,8 +314,14 @@ class BugConf(object):
             cmd.extend(("--sig", self.sig))
         if self.skip:
             cmd.extend(("--skip", "%d" % self.skip))
+        if verbose:
+            cmd.append("-v")
         cmd.append(testcase)
         # run reduce
+
+        log.debug("calling: %r", cmd)
+        subprocess.check_call(cmd)
+        return
 
         lith = lithium.Lithium()
         lith.processArgs(cmd)
@@ -309,7 +376,7 @@ class BugConf(object):
         if cmd == "bcrepro":
             bcobj.repro(args.testcase)
         elif cmd == "bcreduce":
-            bcobj.reduce(args.testcase)
+            bcobj.reduce(args.testcase, args.verbose)
         elif cmd == "bclistbuilds":
             for build in bcobj.list_builds():
                 print(build)
