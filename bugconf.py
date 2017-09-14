@@ -3,6 +3,7 @@
 
 import argparse
 import configparser
+import glob
 import json
 import logging
 import os
@@ -239,6 +240,8 @@ class BugConf(object):
             try:
                 ffp.close()
                 log.info("Firefox process closed")
+                for path in glob.glob("log_*.txt"):
+                    os.unlink(path)
                 ffp.save_logs(".")
             finally:
                 ffp.clean_up()
