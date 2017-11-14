@@ -278,6 +278,7 @@ class BugConf(object):
             with open(crashdata) as log_fp:
                 if "minidump" in crashdata:
                     sys.stdout.write("\n".join(format_mdsw_backtrace(log_fp)))
+                    sys.stdout.write("\n")
                 else:
                     sys.stdout.write(log_fp.read())
         cfg = configparser.RawConfigParser()
@@ -311,6 +312,9 @@ class BugConf(object):
             cmd.extend(("--min-crashes", "%d" % self.min_crashes))
         if self.no_harness:
             cmd.append("--no-harness")
+        if self.extension:
+            cmd.extend(["--extension", self.extension_path])
+
         if self.repeat:
             cmd.extend(("--repeat", "%d" % self.repeat))
         if self.sig:

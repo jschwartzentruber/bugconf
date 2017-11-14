@@ -106,7 +106,8 @@ def init_bug_main():
     server_url, auth_token = load_config()
     crash = init_bug(server_url, auth_token, args.bucket_id)
     print("product=%s" % crash["product"], file=sys.stderr)
-    print("product_version=%s" % crash["product_version"], file=sys.stderr)
+    if "product_version" in crash:
+        print("product_version=%s" % crash["product_version"], file=sys.stderr)
     test_fn = download_test(server_url, auth_token, crash)
     print(test_fn)
 
